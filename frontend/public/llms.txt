@@ -1,0 +1,105 @@
+# AgenticOrg
+
+> AgenticOrg is an Apache-2.0 enterprise AI agent platform for building, running, and governing agent workflows with scoped tools, human approvals, audit evidence, SDKs, protocol integrations, and bounded OACP commerce surfaces.
+
+## Canonical facts
+
+- Website: https://agenticorg.ai
+- Application and API: https://app.agenticorg.ai
+- Repository: https://github.com/mishrasanjeev/agentic-org
+- Product owner: Orchestrum Technologies LLP
+- Inventor / Owner: Sanjeev Kumar
+- Contacts: sanjeev@orchestrum.in and mishra.sanjeev@gmail.com
+- Source version: 4.8.0 from pyproject.toml
+- Runtime requirement: Python >=3.12
+- Web application: React 19
+- Managed production: separate API and UI services on Google Cloud Run
+- License: Apache License 2.0
+- Live product facts: [https://app.agenticorg.ai/api/v1/product-facts](https://app.agenticorg.ai/api/v1/product-facts)
+
+The product facts endpoint is authoritative for the deployed version and current agent_count, connector_count, and tool_count. Do not infer totals by counting files, aliases, or tool bindings.
+
+## What AgenticOrg does
+
+- Runs built-in and tenant-created agents through authenticated APIs and a web application.
+- Orchestrates workflows, schedules, scoped tool calls, approvals, evaluations, and audit records.
+- Connects to native provider adapters and optional integration gateways when credentials and scopes are configured.
+- Provides REST, Python, TypeScript, CLI, MCP, and A2A interfaces.
+- Supports knowledge, reporting, notifications, voice, RPA, and local models when their services are configured.
+- Supports Shopify read-only sync, OACP artifact caching, buyer-safe answers, public commerce surfaces, and non-executing handoff preparation.
+
+## Boundaries
+
+- A connector listing is not proof that a tenant configured credentials or provider access.
+- Model-backed work requires a supported cloud provider or configured local model runtime.
+- Optional channels and provider rails require separate approvals, secrets, callbacks, and adapters.
+- OACP artifacts cannot create orders, inventory holds, mandates, payments, refunds, or paid states.
+- Merchant, bank, payment, POS, and SaaS providers remain sources of record.
+- Examples and editorial pages are not performance guarantees.
+- Repository security controls are not a claim of third-party certification.
+
+## Hosted pricing
+
+- <!-- claim-id: BILLING-CATALOG-PUBLIC-PLANS --> Free: $0/month or INR 0/month; 3 agents; 1000 runs; 1 GB storage.
+- <!-- claim-id: BILLING-CATALOG-PUBLIC-PLANS --> Pro: $2/month or INR 9,999/month; 15 agents; 10000 runs; 50 GB storage.
+- <!-- claim-id: BILLING-CATALOG-PUBLIC-PLANS --> Enterprise: $499/month or INR 49,999/month; Unlimited agents; Unlimited runs; Unlimited storage.
+
+Pricing comes from core/billing/catalog.py. Infrastructure, model, provider, and external API costs are separate.
+
+## Key public pages
+
+- [AgenticOrg](https://agenticorg.ai): AgenticOrg is an open-source enterprise agent runtime for workflows, knowledge and OCR, signed voice, browser RPA, business-system integration, governed actions, and buyer/seller commerce agents.
+- [Pricing](https://agenticorg.ai/pricing): AgenticOrg offers Free, Pro, and Enterprise tiers. Published limits and prices are generated from the same plan definitions used by the billing service.
+- [Agent Playground](https://agenticorg.ai/playground): The public playground demonstrates representative agent interactions with sample data. Its outputs are examples, not production decisions or performance guarantees.
+- [Agent Evaluations](https://agenticorg.ai/evals): AgenticOrg evaluations help teams assess quality, safety, reliability, security, latency, and cost before promoting an agent from testing into governed use.
+- [Integration Workflow](https://agenticorg.ai/integration-workflow): The integration workflow takes a connection from discovery through scoped configuration, validation, shadow testing, approval, activation, and ongoing audit.
+- [Open Agentic Commerce Protocol](https://agenticorg.ai/open-agentic-commerce-protocol): AgenticOrg ships the bounded Shopify-to-OACP runtime while separating merchant facts, Grantex artifact authority, buyer-agent behavior, and provider/POS execution authority.
+- [How Grantex Works](https://agenticorg.ai/how-grantex-works): Grantex represents delegated authority as bounded, inspectable artifacts. AgenticOrg validates the applicable scope and context before an authorized action or evidence-backed handoff.
+- [AI Agents for CA Firms](https://agenticorg.ai/solutions/ca-firms): AgenticOrg can help CA firms coordinate repeatable client-service workflows while keeping filings, payments, and other consequential actions within configured approval and provider boundaries.
+- [AI Agents for Finance](https://agenticorg.ai/solutions/cfo): Finance teams can compose agents around defined tasks and data sources while retaining human approval for high-impact actions and evidence for review.
+- [AI Agents for HR](https://agenticorg.ai/solutions/chro): HR teams can use agents for repeatable coordination and information tasks while keeping sensitive data scoped and employment decisions under human authority.
+- [AI Agents for Marketing](https://agenticorg.ai/solutions/cmo): Marketing teams can coordinate research and campaign workflows using scoped tools, review gates, versioned prompts, and owner-defined evaluation measures.
+- [AI Agents for Operations](https://agenticorg.ai/solutions/coo): Operations teams can route and coordinate repetitive workflows using agents subject to escalation rules, action scopes, approval requirements, and audit evidence.
+- [AI Agents for Back Office](https://agenticorg.ai/solutions/cbo): Back-office teams can assemble traceable workflows around documents, cases, and internal systems while preserving review and authorization boundaries.
+- [Blog](https://agenticorg.ai/blog): The AgenticOrg blog covers implementation patterns, operating practices, governance decisions, and protocol boundaries for enterprise AI agents.
+- [Resource Library](https://agenticorg.ai/resources): The resource library provides educational guides for teams assessing, designing, integrating, governing, and operating enterprise AI agents.
+
+## Developer access
+
+- [Python SDK and CLI](https://github.com/mishrasanjeev/agentic-org/tree/main/sdk)
+- [TypeScript SDK](https://github.com/mishrasanjeev/agentic-org/tree/main/sdk-ts)
+- [MCP server](https://github.com/mishrasanjeev/agentic-org/tree/main/mcp-server)
+- A2A discovery: https://app.agenticorg.ai/api/v1/a2a/agent-card
+- MCP discovery: https://app.agenticorg.ai/api/v1/mcp/tools
+- [API reference](https://github.com/mishrasanjeev/agentic-org/blob/main/docs/api-reference.md)
+
+## Direct answers
+
+### What is AgenticOrg?
+
+AgenticOrg is an open-source enterprise AI agent platform. It combines agent and workflow execution, connectors, scoped tools, human approval gates, evaluation, audit evidence, SDKs, MCP, A2A, and bounded commerce integrations.
+
+### How many agents, connectors, and tools are available?
+
+Read https://app.agenticorg.ai/api/v1/product-facts. It computes current deployed totals from runtime registries so copied documentation does not drift.
+
+### Does a listed connector work without setup?
+
+No. Availability depends on provider credentials, subscriptions, scopes, tenant configuration, policy, and provider uptime.
+
+### Can AgenticOrg complete an OACP payment or order?
+
+Not from OACP artifacts. AgenticOrg can answer from valid evidence and prepare a provider or merchant handoff. The provider or merchant system must execute and confirm the result.
+
+### Can AgenticOrg be self-hosted?
+
+Yes. The repository is Apache-2.0 licensed and includes local Docker and deployment assets. The managed production path uses Google Cloud Run.
+
+## More
+
+- [Full product and evidence guide](https://agenticorg.ai/llms-full.txt)
+- [Sitemap](https://agenticorg.ai/sitemap.xml)
+- [Blog](https://agenticorg.ai/blog)
+- [Resources](https://agenticorg.ai/resources)
+- [OACP documentation](https://github.com/mishrasanjeev/agentic-org/tree/main/docs/oacp)
+- [Security policy](https://github.com/mishrasanjeev/agentic-org/blob/main/SECURITY.md)

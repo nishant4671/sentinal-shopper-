@@ -1,0 +1,118 @@
+@import "tailwindcss";
+@config "../tailwind.config.ts";
+
+/* v4 changed default border color from gray-200 to currentColor.
+   Restore prior behaviour so legacy `border` classes don't show
+   text-colored borders that look like layout breakage. */
+@layer base {
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    border-color: hsl(var(--border));
+  }
+}
+
+/* Shimmer animation for release banner gradient border */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Accessibility (WCAG 2.1 AA) ────────────────────────────────────── */
+
+/* Skip-to-content link — visible only on keyboard focus */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 0;
+  padding: 0.75rem 1rem;
+  background: hsl(222 47% 11%);
+  color: hsl(210 40% 98%);
+  z-index: 9999;
+  border-radius: 0 0 0.5rem 0;
+  text-decoration: none;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* Universal visible focus ring so keyboard users always see where they
+ * are. Uses the --primary token so the ring auto-adapts to theme
+ * changes without needing an explicit .dark override. Per
+ * impeccable/interaction-design.md: focus rings must be visible,
+ * 2–3px thick, offset from element, consistent across all interactive
+ * elements, and at least 3:1 contrast against adjacent surface. */
+:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Larger tap targets on touch devices (WCAG 2.5.5 target size) */
+@media (pointer: coarse) {
+  button,
+  a[role="button"],
+  input[type="button"],
+  input[type="submit"] {
+    min-height: 44px;
+  }
+}
+
+/* Respect prefers-reduced-motion — disables animations system-wide */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%; --foreground: 222 84% 5%;
+    --primary: 222 47% 11%; --primary-foreground: 210 40% 98%;
+    /* muted-foreground: tinted toward the brand slate/blue hue (chroma
+       up from 16% → 18%, lightness 47% → 42% for AA body-text contrast).
+       Per impeccable/color-and-contrast: pure gray is dead, tint
+       toward the brand hue. */
+    --muted: 210 40% 96%; --muted-foreground: 215 18% 42%;
+    --accent: 210 40% 96%; --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%; --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 91%; --radius: 0.5rem;
+  }
+  .dark {
+    --background: 222 84% 5%; --foreground: 210 40% 98%;
+    --primary: 210 40% 98%; --primary-foreground: 222 47% 11%;
+    --muted: 217 33% 17%; --muted-foreground: 215 20% 65%;
+    --border: 217 33% 17%;
+  }
+}
+
+/* ── Typographic polish (impeccable pass 4) ───────────────────────────
+ * Geist ships high-quality OpenType features; turn on tabular numerals
+ * for any element with .tabular-nums so KPI cards, aging tables, and
+ * counters don't visually jitter when values change. This is a CSS
+ * shortcut Tailwind already provides as `tabular-nums`; we re-declare
+ * here so custom numeric elements without the utility class pick it up
+ * automatically (e.g. `<code>`, `<pre>`, numeric cells inside
+ * `data-numeric` wrappers).
+ */
+.tabular-nums,
+code,
+pre,
+[data-numeric] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "cv11" 1;
+}
+
+/* Horizontal scroll containers get smooth snap. Opt-in via
+ * `.snap-scroller` so the existing vertical scroll is untouched. */
+.snap-scroller {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.snap-scroller > * {
+  scroll-snap-align: start;
+}

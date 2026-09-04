@@ -1,0 +1,17 @@
+# AgenticOrg public crawl policy
+# Public marketing, documentation, blog, and resource routes are crawlable.
+# API, WebSocket, and tenant application routes are not public search content.
+# Authentication pages remain crawlable so their HTTP X-Robots-Tag noindex
+# directives can be observed. Access control remains the security boundary.
+
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /api/
+Disallow: /ws/
+
+Sitemap: https://agenticorg.ai/sitemap.xml
+
+# Plain-text product documentation for language-model clients:
+# https://agenticorg.ai/llms.txt
+# https://agenticorg.ai/llms-full.txt

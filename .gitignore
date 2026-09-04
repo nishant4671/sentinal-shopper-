@@ -1,0 +1,75 @@
+# ===============================
+# Python & Virtual Environment
+# ===============================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+venv/
+env/
+.env
+.env.local
+.env.*.local
+
+# ===============================
+# Node.js / React Frontend
+# ===============================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/dist/
+frontend/*.log
+frontend/.env.local
+
+# ===============================
+# Testing & Logs
+# ===============================
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+test_output/
+logs/
+*.db
+*.sqlite3
+
+# ===============================
+# IDEs & Editors
+# ===============================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ===============================
+# Operating System Junk
+# ===============================
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+
+# ===============================
+# Project Specific
+# ===============================
+temp_repo/
+*.pid
+*.lock
+.uvicorn/
+*.pem
+
+# ===============================
+# Misc (Keep benchmark/ - don't ignore it)
+# ===============================
+# !benchmark/  (If you accidentally added benchmark/ above, uncomment this to keep it)

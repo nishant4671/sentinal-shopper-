@@ -1,0 +1,580 @@
+import { useState, useRef, useCallback, useEffect, type FormEvent } from "react";
+import { Link } from "react-router";
+import ProductOwnership from "../components/ProductOwnership";
+
+/* ------------------------------------------------------------------ */
+/*  useInView â€” Intersection Observer hook for scroll animations       */
+/* ------------------------------------------------------------------ */
+function useInView(threshold = 0.15): { ref: (el: HTMLDivElement | null) => void; visible: boolean } {
+  const [visible, setVisible] = useState(false);
+  const obsRef = useRef<IntersectionObserver | null>(null);
+
+  const setRef = useCallback((el: HTMLDivElement | null) => {
+    if (obsRef.current) { obsRef.current.disconnect(); obsRef.current = null; }
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold }
+    );
+    obs.observe(el);
+    obsRef.current = obs;
+  }, [threshold]);
+
+  return { ref: setRef, visible };
+}
+
+function FadeIn({ children, className = "", delay = 0 }: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const { ref, visible } = useInView();
+  return (
+    <div
+      ref={ref}
+      className={`transition-all duration-700 ease-out ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"} ${className}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Check icon                                                         */
+/* ------------------------------------------------------------------ */
+function CheckIcon({ className = "w-5 h-5 text-emerald-500" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Data                                                               */
+/* ------------------------------------------------------------------ */
+
+const PAIN_STATS = [
+  { value: "Fragmented", label: "Client records and close tasks across systems", color: "text-red-500" },
+  { value: "Manual", label: "Tax workpaper preparation and review queues", color: "text-orange-500" },
+  { value: "Exception-heavy", label: "Bank and ledger reconciliation follow-up", color: "text-red-500" },
+];
+
+const FEATURES = [
+  {
+    title: "Multi-Client Management",
+    description: "Manage configured client companies from one dashboard with company-level isolation and role-based access. Client capacity depends on the selected plan and CA Pack limits.",
+    icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
+    gradient: "from-blue-500 to-cyan-600",
+  },
+  {
+    title: "GST Compliance",
+    description: "Prepare GSTR workpapers, 2A reconciliation, deadline alerts, and filing packets. GSTN, GSP, DSC, and submission functions require configured providers, credentials, scopes, and authorized approval.",
+    icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+    gradient: "from-orange-500 to-red-600",
+  },
+  {
+    title: "TDS Automation",
+    description: "Prepare draft Form 26Q and 24Q materials, Form 16A inputs, and 26AS reconciliation outputs. An authorized professional reviews and submits statutory filings.",
+    icon: "M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z",
+    gradient: "from-blue-600 to-emerald-500",
+  },
+  {
+    title: "Bank Reconciliation",
+    description: "Propose matches from configured bank and ledger sources, flag stale or duplicate items, and route unresolved exceptions to partners. Match quality depends on source data.",
+    icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
+    gradient: "from-emerald-500 to-teal-600",
+  },
+  {
+    title: "Month-End Close",
+    description: "Coordinate a configurable close checklist across reconciliation, adjustments, review, sign-off, and reporting. Cycle time depends on source readiness and firm policy.",
+    icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
+    gradient: "from-amber-500 to-orange-600",
+  },
+  {
+    title: "Audit Trail",
+    description: "HMAC-signed audit entries and partner approval tracking provide inputs for a scoped readiness review. Their presence does not establish the applicability or sufficiency of any external assurance framework.",
+    icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+    gradient: "from-cyan-500 to-teal-600",
+  },
+];
+
+const HOW_IT_WORKS = [
+  { step: "1", title: "Onboard Client", description: "Enter client identifiers and source references, validate available fields, and create a draft company profile for authorized review." },
+  { step: "2", title: "Connect Systems", description: "Configure supported Tally, bank, Account Aggregator, GSTN, and statutory sources. Availability depends on credentials, scopes, tenant plan, and provider APIs." },
+  { step: "3", title: "Configure Guardrails", description: "Select GST, TDS, reconciliation, and close workflows, then set thresholds and approval chains. Filing actions remain human-approved." },
+  { step: "4", title: "Validate & Enable", description: "Run in shadow mode, evaluate outputs, and enable selected actions only within approved scopes and provider capabilities." },
+];
+
+const TRUST_LOGOS = [
+  { name: "Tally", abbr: "TL" },
+  { name: "GSTN", abbr: "GS" },
+  { name: "EPFO", abbr: "EP" },
+  { name: "HDFC Bank", abbr: "HD" },
+  { name: "SBI", abbr: "SB" },
+  { name: "Adaequare", abbr: "AD" },
+];
+
+/* ------------------------------------------------------------------ */
+/*  Demo Modal                                                         */
+/* ------------------------------------------------------------------ */
+function DemoModal({ onClose }: { onClose: () => void }) {
+  const [form, setForm] = useState({ name: "", email: "", firm: "", clients: "" });
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+  const [confirmationSent, setConfirmationSent] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/v1/demo-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, source: "ca-firms-solution" }),
+      });
+      if (!res.ok) throw new Error("Request failed");
+      const data = await res.json().catch(() => ({}));
+      setConfirmationSent(Boolean(data?.email?.requester_confirmation_sent));
+      setDone(true);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const fieldClass =
+    "w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all";
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm px-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl p-8">
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors" aria-label="Close">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        {done ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+              <CheckIcon className="w-8 h-8 text-emerald-600" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Thanks!</h3>
+            <p className="text-slate-600">
+              {confirmationSent
+                ? "We sent a confirmation email for your CA Pack evaluation request. Our team will follow up using the details you provided."
+                : "Your CA Pack evaluation request was saved. Our team will follow up using the details you provided."}
+            </p>
+            <button onClick={onClose} className="mt-6 bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:from-blue-600 hover:to-cyan-600 transition-all">
+              Close
+            </button>
+          </div>
+        ) : (
+          <>
+            <h3 className="text-xl font-bold text-slate-900 mb-1">Request a CA Pack Evaluation</h3>
+            <p className="text-sm text-slate-500 mb-6">Evaluation access, scope, and duration are confirmed during discovery and remain subject to current plan limits, provider configuration, and signed terms.</p>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="ca-name" className="block text-sm font-medium text-slate-700 mb-1">Name <span className="text-red-500">*</span></label>
+                <input id="ca-name" required type="text" placeholder="Your full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={fieldClass} />
+              </div>
+              <div>
+                <label htmlFor="ca-email" className="block text-sm font-medium text-slate-700 mb-1">Work Email <span className="text-red-500">*</span></label>
+                <input id="ca-email" required type="email" placeholder="you@cafirm.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={fieldClass} />
+              </div>
+              <div>
+                <label htmlFor="ca-firm" className="block text-sm font-medium text-slate-700 mb-1">Firm Name</label>
+                <input id="ca-firm" type="text" placeholder="Your CA firm name" value={form.firm} onChange={(e) => setForm({ ...form, firm: e.target.value })} className={fieldClass} />
+              </div>
+              <div>
+                <label htmlFor="ca-clients" className="block text-sm font-medium text-slate-700 mb-1">Number of Clients</label>
+                <select id="ca-clients" value={form.clients} onChange={(e) => setForm({ ...form, clients: e.target.value })} className={fieldClass}>
+                  <option value="">Select range</option>
+                  <option value="1-5">1-5 clients</option>
+                  <option value="6-15">6-15 clients</option>
+                  <option value="16-30">16-30 clients</option>
+                  <option value="30+">30+ clients</option>
+                </select>
+              </div>
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <button type="submit" disabled={submitting} className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-3 rounded-lg text-sm font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg shadow-blue-500/25 disabled:opacity-60 disabled:cursor-not-allowed">
+                {submitting ? "Submitting..." : "Request Evaluation"}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  CA Firms Solution Page                                             */
+/* ------------------------------------------------------------------ */
+export default function CAFirmsSolution() {
+  const [showDemo, setShowDemo] = useState(false);
+
+  return (
+    <div className="min-h-screen font-sans text-slate-900 antialiased overflow-x-hidden">
+
+      {/* ============================================================ */}
+      {/* NAVBAR                                                        */}
+      {/* ============================================================ */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-700/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center text-white font-bold text-sm">AO</div>
+            <span className="text-white font-semibold text-lg">AgenticOrg</span>
+          </Link>
+          <div className="hidden md:flex items-center gap-8">
+            <Link to="/" className="text-slate-300 hover:text-white text-sm transition-colors">Home</Link>
+            <Link to="/pricing" className="text-slate-300 hover:text-white text-sm transition-colors">Pricing</Link>
+            <Link to="/blog" className="text-slate-300 hover:text-white text-sm transition-colors">Blog</Link>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link to="/login" className="hidden sm:inline-flex border border-slate-500 text-slate-300 hover:text-white hover:border-white px-4 py-2 rounded-lg text-sm font-medium transition-all">Sign In</Link>
+            <button onClick={() => setShowDemo(true)} className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-5 py-2 rounded-lg text-sm font-medium hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg shadow-blue-500/25">
+              Request CA Pack Evaluation
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* ============================================================ */}
+      {/* HERO                                                          */}
+      {/* ============================================================ */}
+      <section className="relative min-h-screen flex items-center overflow-hidden bg-slate-900">
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
+        </div>
+        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)", backgroundSize: "64px 64px" }} />
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 bg-slate-800/80 border border-slate-700 rounded-full px-4 py-1.5 mb-6">
+              <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+              <span className="text-slate-300 text-sm">Built for Indian CA Firms</span>
+            </div>
+
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight">
+              AI-Powered Virtual Employees for{" "}
+              <span className="bg-gradient-to-r from-orange-400 via-white to-green-400 bg-clip-text text-transparent">
+                Chartered Accountant Firms
+              </span>
+            </h1>
+
+            <p className="mt-6 text-lg sm:text-xl text-slate-400 max-w-3xl mx-auto leading-relaxed">
+              Coordinate multi-client GST and TDS workpapers, reconciliation, close checklists, approvals, and audit evidence from one governed workspace.
+            </p>
+
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button
+                onClick={() => setShowDemo(true)}
+                className="w-full sm:w-auto inline-flex items-center justify-center bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-8 py-3.5 rounded-xl text-base font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg shadow-blue-500/25"
+              >
+                Request CA Pack Evaluation
+              </button>
+              <Link
+                to="/login?demo=true"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 border border-slate-600 text-slate-300 px-8 py-3.5 rounded-xl text-base font-semibold hover:bg-slate-800 hover:text-white transition-all"
+              >
+                Try Demo
+              </Link>
+            </div>
+
+            <p className="mt-4 text-sm text-slate-500">Evaluation scope and duration are confirmed during discovery &middot; plan limits, connectors, provider access, filing approvals, and signed terms apply</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* PAIN POINTS                                                   */}
+      {/* ============================================================ */}
+      <section className="py-24 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <FadeIn>
+            <div className="text-center mb-16 max-w-3xl mx-auto">
+              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 leading-tight">
+                Common multi-client compliance workflow friction
+              </h2>
+              <p className="mt-4 text-lg text-slate-500">
+                Illustrative workflow states; actual priorities depend on client count, source quality, filing calendar, and firm controls.
+              </p>
+            </div>
+          </FadeIn>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {PAIN_STATS.map((s, i) => (
+              <FadeIn key={s.value} delay={i * 150}>
+                <div className="bg-white rounded-2xl p-8 border border-slate-200 text-center hover:shadow-lg transition-all duration-300">
+                  <div className={`text-4xl sm:text-5xl font-extrabold ${s.color} mb-3`}>{s.value}</div>
+                  <p className="text-slate-600">{s.label}</p>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* FEATURES GRID                                                 */}
+      {/* ============================================================ */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <FadeIn>
+            <div className="text-center mb-16">
+              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">Governed Workflows for CA Firms</h2>
+              <p className="mt-4 text-lg text-slate-500 max-w-2xl mx-auto">
+                Configure scoped modules for client management, GST and TDS workpapers, reconciliation, close coordination, approvals, and audit evidence.
+              </p>
+            </div>
+          </FadeIn>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {FEATURES.map((f, i) => (
+              <FadeIn key={f.title} delay={i * 100}>
+                <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl p-6 border border-slate-200 hover:shadow-lg transition-all duration-300 h-full">
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${f.gradient} flex items-center justify-center mb-4`}>
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={f.icon} />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">{f.title}</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">{f.description}</p>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* HOW IT WORKS                                                  */}
+      {/* ============================================================ */}
+      <section className="py-24 bg-slate-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <FadeIn>
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center gap-2 bg-slate-800/80 border border-slate-700 rounded-full px-4 py-1.5 mb-6">
+                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                <span className="text-slate-300 text-sm">Configure, Validate, Then Enable</span>
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white">How It Works</h2>
+              <p className="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">
+                Onboard clients, connect approved sources, configure guardrails, and validate selected workflows before enabling actions.
+              </p>
+            </div>
+          </FadeIn>
+
+          <div className="grid md:grid-cols-4 gap-6">
+            {HOW_IT_WORKS.map((s, i) => (
+              <FadeIn key={s.step} delay={i * 100}>
+                <div className="relative bg-slate-800/50 border border-slate-700 rounded-xl p-6 hover:border-blue-500/50 transition-colors h-full">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-lg font-bold mb-4">{s.step}</div>
+                  <h3 className="text-white font-semibold text-lg mb-2">{s.title}</h3>
+                  <p className="text-slate-400 text-sm">{s.description}</p>
+                  {i < HOW_IT_WORKS.length - 1 && (
+                    <div className="hidden md:block absolute top-1/2 -right-3 transform -translate-y-1/2 text-slate-600">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* PRICING CTA                                                   */}
+      {/* ============================================================ */}
+      <section className="py-24 bg-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <FadeIn>
+            <div className="bg-gradient-to-br from-blue-50 via-white to-teal-50 rounded-3xl border border-slate-200 p-8 sm:p-12 text-center">
+              <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 rounded-full px-4 py-1.5 text-sm font-medium mb-6">
+                CA Pack &mdash; Current Commercial Terms
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+                Request current CA Pack pricing and scope
+              </h2>
+              <p className="text-sm text-slate-500 mb-2">The current billing catalog and your signed order govern commercial terms.</p>
+              <p className="text-lg text-slate-600 mb-2 max-w-xl mx-auto">
+                Includes six CA Pack workflow areas. Enabled functions depend on plan limits, configured sources, provider capabilities, credentials, scopes, and approvals.
+              </p>
+              <p className="text-sm font-medium text-emerald-600 mb-4">Evaluation availability, scope, and duration are confirmed during discovery</p>
+              <ul className="grid sm:grid-cols-2 gap-3 mb-8 max-w-lg mx-auto text-left">
+                {[
+                  "Agent runs follow plan limits",
+                  "Client capacity follows plan limits",
+                  "Configurable Tally and GSTN connectors",
+                  "Account Aggregator, where available",
+                  "DSC-assisted filing with approval",
+                  "Approval and audit evidence",
+                  "Support level follows plan",
+                  "Evaluation scope confirmed during discovery",
+                  "Partner approval queues",
+                  "Bulk filing review queues",
+                  "Compliance deadline alerts",
+                  "Credential and secret handling",
+                  "Partner dashboard",
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-2 text-sm text-slate-700">
+                    <CheckIcon className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => setShowDemo(true)}
+                className="inline-flex items-center justify-center bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-10 py-3.5 rounded-xl text-base font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg shadow-blue-500/25"
+              >
+                Request CA Pack Evaluation
+              </button>
+              <p className="mt-3 text-sm text-slate-500">Current billing terms and the signed order govern pricing, usage, and scope. Connector, provider, and filing capabilities depend on approved configuration.</p>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* TRUST / BUILT FOR INDIA                                       */}
+      {/* ============================================================ */}
+      <section className="py-24 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <FadeIn>
+            <div className="bg-gradient-to-br from-orange-50 via-white to-green-50 rounded-3xl border border-slate-200 overflow-hidden">
+              <div className="p-8 sm:p-12">
+                <div className="text-center mb-12">
+                  <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 rounded-full px-4 py-1.5 text-sm font-medium mb-4">
+                    Built for Indian CA Firms
+                  </div>
+                  <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">
+                    Connector Availability
+                  </h2>
+                  <p className="mt-4 text-lg text-slate-500 max-w-2xl mx-auto">
+                    Listed systems represent supported integration surfaces. Availability depends on credentials, scopes, provider APIs, tenant plan, portal access, and provider approval.
+                  </p>
+                </div>
+
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {TRUST_LOGOS.map((c, i) => (
+                    <FadeIn key={c.name} delay={i * 75}>
+                      <div className="flex items-center gap-4 bg-white/80 rounded-xl px-5 py-4 border border-slate-100 hover:shadow-md transition-all duration-300">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-400 to-green-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                          {c.abbr}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-slate-900 text-sm">{c.name}</h3>
+                        </div>
+                      </div>
+                    </FadeIn>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* FINAL CTA                                                     */}
+      {/* ============================================================ */}
+      <section className="py-24 bg-slate-900">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <FadeIn>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+              Bring client compliance work into governed workflows
+            </h2>
+            <p className="text-lg text-slate-400 mb-10">
+              Review source-linked workpapers and exceptions while partners retain ownership of filings, signatures, approvals, and professional judgment.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button
+                onClick={() => setShowDemo(true)}
+                className="w-full sm:w-auto inline-flex items-center justify-center bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-8 py-3.5 rounded-xl text-base font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg shadow-blue-500/25"
+              >
+                Request CA Pack Evaluation
+              </button>
+              <Link
+                to="/pricing"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 border border-slate-600 text-slate-300 px-8 py-3.5 rounded-xl text-base font-semibold hover:bg-slate-800 hover:text-white transition-all"
+              >
+                View Plans
+              </Link>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* FOOTER                                                        */}
+      {/* ============================================================ */}
+      <footer className="bg-slate-950 border-t border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center text-white font-bold text-sm">AO</div>
+                <span className="text-white font-semibold">AgenticOrg</span>
+              </div>
+              <p className="text-sm text-slate-400 leading-relaxed">AI-Powered Virtual Employees for Chartered Accountant Firms.</p>
+            </div>
+            <div>
+              <h4 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Platform</h4>
+              <ul className="space-y-2">
+                <li><Link to="/" className="text-slate-400 hover:text-white text-sm transition-colors">Home</Link></li>
+                <li><Link to="/pricing" className="text-slate-400 hover:text-white text-sm transition-colors">Pricing</Link></li>
+                <li><Link to="/blog" className="text-slate-400 hover:text-white text-sm transition-colors">Blog</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Solutions</h4>
+              <ul className="space-y-2">
+                <li><Link to="/solutions/ca-firms" className="text-slate-400 hover:text-white text-sm transition-colors">For CA Firms</Link></li>
+                <li><Link to="/dashboard/companies" className="text-slate-400 hover:text-white text-sm transition-colors">Companies</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Company</h4>
+              <ul className="space-y-2">
+                <li><a href="mailto:sanjeev@orchestrum.in" className="text-slate-400 hover:text-white text-sm transition-colors">Contact</a></li>
+                <li><span className="text-slate-400 text-sm">Orchestrum Technologies LLP</span></li>
+                <li><span className="text-slate-400 text-sm">Bengaluru, India</span></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <ProductOwnership compact />
+            <div className="flex items-center gap-6">
+              <a href="/privacy" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">Privacy</a>
+              <a href="/terms" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">Terms</a>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      {showDemo && <DemoModal onClose={() => setShowDemo(false)} />}
+    </div>
+  );
+}

@@ -1,0 +1,247 @@
+import axios from "axios";
+const API_BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api/v1`
+  : "/api/v1";
+// withCredentials=true is required so the browser ships the
+// agenticorg_session + agenticorg_csrf cookies on every request, even
+// for cross-origin deploys (VITE_API_URL set). Without this the
+// cookies stay on the document and CSRF middleware sees the request
+// as a bearer-only client.
+const api = axios.create({
+  baseURL: API_BASE,
+  timeout: 30000,
+  withCredentials: true,
+});
+
+// SEC-2026-05-P1-003 (PR-B): read the CSRF token from the
+// agenticorg_csrf cookie and echo it back via X-CSRF-Token on every
+// mutating request. The double-submit pattern relies on this - the
+// server compares the cookie value against the header value with a
+// constant-time check. ``document.cookie`` is the only JS-readable
+// store; the session cookie remains HttpOnly and stays unreadable.
+function readCookie(name: string): string {
+  const match = document.cookie.match(
+    new RegExp("(?:^|; )" + name.replace(/[$()*+./?[\]\\^{|}]/g, "\\$&") + "=([^;]*)"),
+  );
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+api.interceptors.request.use((config) => {
+  // SEC-002 (PR-F): browser auth is COOKIE-FIRST. The browser ships
+  // the HttpOnly ``agenticorg_session`` cookie automatically because
+  // ``withCredentials: true`` is set above. We DO NOT read a bearer
+  // token from localStorage anymore - that was the SEC-002 attack
+  // surface.
+
+  // CSRF: only attach for mutating methods. The server-side middleware
+  // exempts safe methods + bearer-only API clients, but sending the
+  // header on a GET is harmless and aligns with future hardening.
+  const method = (config.method || "get").toLowerCase();
+  if (method === "post" || method === "put" || method === "patch" || method === "delete") {
+    const csrf = readCookie("agenticorg_csrf");
+    if (csrf) {
+      config.headers["X-CSRF-Token"] = csrf;
+    }
+  }
+  return config;
+});
+
+// TC-001: Auto-retry failed GET requests once (covers transient failures on navigation)
+api.interceptors.response.use(undefined, async (error) => {
+  const config = error.config;
+  if (
+    config &&
+    !config._retried &&
+    config.method === "get" &&
+    (!error.response || error.response.status >= 500)
+  ) {
+    config._retried = true;
+    await new Promise((r) => setTimeout(r, 1000));
+    return api(config);
+  }
+  return Promise.reject(error);
+});
+let isRedirectingTo401 = false;
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && !isRedirectingTo401) {
+      isRedirectingTo401 = true;
+      // SEC-002 (PR-F): cookie is HttpOnly so we can't clear it from
+      // JS. The redirect to /login itself is the user-visible signal;
+      // the backend will clear/expire the cookie on the next /logout
+      // call (or it expires server-side via JWT TTL). We still purge
+      // legacy localStorage entries in case an older client wrote
+      // them before the PR-F upgrade.
+      try {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      } catch {
+        // ignore - private browsing or storage disabled
+      }
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
+export function extractApiError(e: unknown, fallback = "An error occurred"): string {
+  const data = (e as any)?.response?.data;
+  const detail = data?.detail;
+  if (typeof detail === "string") return detail;
+  if (detail && typeof detail === "object") {
+    if (Array.isArray((detail as any).connectors)) {
+      const connectors = (detail as any).connectors
+        .map((c: any) => `${c.connector || "connector"} (${String(c.reason || "not ready").replace(/_/g, " ")})`)
+        .join(", ");
+      if (typeof (detail as any).message === "string") return `${(detail as any).message} Affected: ${connectors}.`;
+    }
+    if (typeof detail.message === "string") return detail.message;
+    if (typeof detail.error === "string") {
+      return detail.message ? `${detail.error}: ${detail.message}` : detail.error;
+    }
+  }
+  if (typeof data?.message === "string") return data.message;
+  if (typeof data?.error === "string") return data.error;
+  return fallback;
+}
+export default api;
+
+async function listAllPages<T>(
+  path: string,
+  params?: Record<string, string>,
+): Promise<T[]> {
+  const items: T[] = [];
+  let page = 1;
+  let pages: number;
+  const perPage = "100";
+
+  do {
+    const { data } = await api.get(path, {
+      params: { ...(params || {}), page: String(page), per_page: perPage },
+    });
+    const pageItems: T[] = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.items)
+        ? data.items
+        : [];
+
+    items.push(...pageItems);
+    pages = Number.isFinite(Number(data?.pages)) ? Number(data.pages) : page;
+
+    if (!data?.pages) {
+      const total = Number(data?.total ?? items.length);
+      if (items.length >= total || pageItems.length < Number(perPage)) break;
+      pages = page + 1;
+    }
+
+    page += 1;
+  } while (page <= pages);
+
+  return items;
+}
+
+export const agentsApi = {
+  list: (params?: Record<string, string>) => api.get("/agents", { params }),
+  listAll: (params?: Record<string, string>) => listAllPages<any>("/agents", params),
+  get: (id: string) => api.get(`/agents/${id}`),
+  create: (data: any) => api.post("/agents", data),
+  update: (id: string, data: any) => api.patch(`/agents/${id}`, data),
+  run: (id: string, payload?: any) => api.post(`/agents/${id}/run`, payload),
+  pause: (id: string) => api.post(`/agents/${id}/pause`),
+  resume: (id: string) => api.post(`/agents/${id}/resume`),
+  promote: (id: string) => api.post(`/agents/${id}/promote`),
+  clone: (id: string, data: any) => api.post(`/agents/${id}/clone`, data),
+  promptHistory: (id: string) => api.get(`/agents/${id}/prompt-history`),
+  orgTree: (params?: Record<string, string>) => api.get("/agents/org-tree", { params }),
+  importCsv: (file: File, params?: Record<string, string>) => { const fd = new FormData(); fd.append("file", file); return api.post("/agents/import-csv", fd, { params }); },
+  generate: (description: string, deploy = false) => api.post("/agents/generate", { description, deploy }),
+};
+export const promptTemplatesApi = {
+  list: (params?: Record<string, string>) => api.get("/prompt-templates", { params }),
+  get: (id: string) => api.get(`/prompt-templates/${id}`),
+  create: (data: any) => api.post("/prompt-templates", data),
+  update: (id: string, data: any) => api.put(`/prompt-templates/${id}`, data),
+  delete: (id: string) => api.delete(`/prompt-templates/${id}`),
+};
+export const workflowsApi = {
+  templates: (params?: Record<string, string>) => api.get("/workflows/templates", { params }),
+  list: (params?: Record<string, string>) => api.get("/workflows", { params }),
+  get: (id: string) => api.get(`/workflows/${id}`),
+  generate: (description: string, deploy = false) => api.post("/workflows/generate", { description, deploy }),
+  create: (data: any) => api.post("/workflows", data),
+  run: (id: string, payload?: any) => api.post(`/workflows/${id}/run`, { payload: payload || {} }),
+  getRun: (id: string) => api.get(`/workflows/runs/${id}`),
+};
+export const approvalsApi = {
+  list: () => api.get("/approvals"),
+  decide: (id: string, decision: string, notes: string) => api.post(`/approvals/${id}/decide`, { decision, notes }),
+};
+export const auditApi = { query: (params: any) => api.get("/audit", { params }) };
+
+// KPI Dashboards
+export const kpisApi = {
+  cfo: (companyId?: string) => api.get("/kpis/cfo", { params: companyId ? { company_id: companyId } : {} }),
+  cmo: (companyId?: string) => api.get("/kpis/cmo", { params: companyId ? { company_id: companyId } : {} }),
+};
+
+// NL Query Chat
+export const chatApi = {
+  query: (query: string, companyId?: string) => api.post("/chat/query", { query, company_id: companyId }),
+  history: () => api.get("/chat/history"),
+};
+
+// Multi-Company
+export const companiesApi = {
+  list: () => api.get("/companies"),
+  create: (data: any) => api.post("/companies", data),
+  get: (id: string) => api.get(`/companies/${id}`),
+};
+
+export const commerceRuntimeApi = {
+  getMerchantConfig: (merchantId: string, params?: any) =>
+    api.get(`/commerce/runtime/merchant-configs/${merchantId}`, { params }),
+  upsertMerchantConfig: (merchantId: string, data: any) =>
+    api.put(`/commerce/runtime/merchant-configs/${merchantId}`, data),
+  getMerchantConfigReadiness: (merchantId: string, params?: any) =>
+    api.get(`/commerce/runtime/merchant-configs/${merchantId}/readiness`, { params }),
+  createOnboardingPacket: (data: any) =>
+    api.post("/commerce/runtime/seller-agents/onboarding-packets", data),
+  getOnboardingPacket: (packetId: string) =>
+    api.get(`/commerce/runtime/seller-agents/onboarding-packets/${packetId}`),
+  upsertShopifyCredentials: (data: any) =>
+    api.post("/commerce/runtime/seller-agents/connectors/shopify/credentials", data),
+  getShopifyStatus: (params: any) =>
+    api.get("/commerce/runtime/seller-agents/connectors/shopify/status", { params }),
+  syncShopify: (data: any) => api.post("/commerce/runtime/seller-agents/shopify/sync", data),
+  requestGrantexAuthority: (data: any) => api.post("/commerce/runtime/authority/grantex/request", data),
+  cacheArtifacts: (data: any) => api.post("/commerce/runtime/artifacts/cache", data),
+  askBuyerQuestion: (data: any) => api.post("/commerce/runtime/buyer-sessions/ask", data),
+  getBridgeSurfaces: () => api.get("/commerce/runtime/bridges/surfaces"),
+  getProtocolAdapters: (params: any) => api.get("/commerce/runtime/protocol-adapters", { params }),
+  getProtocolAdapterSurface: (surface: string, params: any) =>
+    api.get(`/commerce/runtime/protocol-adapters/${surface}`, { params }),
+  preparePurchase: (data: any) => api.post("/commerce/runtime/purchase/prepare", data),
+  getOfflinePosReadiness: () => api.get("/commerce/runtime/pos/offline/readiness"),
+  createOfflinePosHandoff: (data: any) => api.post("/commerce/runtime/pos/offline/handoffs", data),
+  simulateOfflinePosConfirmation: (data: any) =>
+    api.post("/commerce/runtime/pos/offline/simulator/confirm", data),
+  listProducts: (params: any) => api.get("/commerce/runtime/products", { params }),
+  verifyPluralPineCapability: (data: any) =>
+    api.post("/commerce/runtime/providers/plural-pine/mandate-capability/verify", data),
+};
+
+// ABM (Account-Based Marketing)
+export const abmApi = {
+  listAccounts: (params?: Record<string, string>) => api.get("/abm/accounts", { params }),
+  getAccount: (id: string) => api.get(`/abm/accounts/${id}`),
+  createAccount: (data: any) => api.post("/abm/accounts", data),
+  getIntent: (id: string) => api.get(`/abm/accounts/${id}/intent`),
+  launchCampaign: (id: string, data: any) => api.post(`/abm/accounts/${id}/campaign`, data),
+  dashboard: (params?: Record<string, string>) =>
+    api.get("/abm/dashboard", { params }),
+  uploadCsv: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return api.post("/abm/accounts/upload", fd);
+  },
+};

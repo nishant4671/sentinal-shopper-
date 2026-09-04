@@ -1,0 +1,257 @@
+import { useState, useEffect, lazy, Suspense } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
+import HITLBadge from "./HITLBadge";
+import { useAuth } from "../contexts/AuthContext";
+
+const LANGUAGES = [
+  { code: "en", label: "EN" },
+  { code: "hi", label: "HI" },
+] as const;
+
+const NLQueryBar = lazy(() => import("./NLQueryBar"));
+const ChatPanel = lazy(() => import("./ChatPanel"));
+const CompanySwitcher = lazy(() => import("./CompanySwitcher"));
+const NotificationBell = lazy(() => import("./NotificationBell"));
+
+// Nav labels use i18n keys (nav.<key>).
+// See ui/src/locales/en.json and hi.json for translations.
+const ALL_NAV = [
+  { path: "/dashboard", labelKey: "nav.dashboard", label: "Dashboard", roles: ["admin", "cfo", "chro", "cmo", "coo", "auditor"] },
+  { path: "/dashboard/partner", labelKey: "nav.partner", label: "Partner Dashboard", roles: ["admin", "cfo", "coo", "auditor"] },
+  { path: "/dashboard/companies", labelKey: "nav.companies", label: "Companies", roles: ["admin", "cfo", "coo", "auditor"] },
+  { path: "/dashboard/ca-operations", labelKey: "nav.caOperations", label: "CA Operations", roles: ["admin", "cfo", "coo", "auditor"] },
+  { path: "/dashboard/professional-tax", labelKey: "nav.professionalTax", label: "Professional Tax", roles: ["admin", "cfo", "coo", "auditor"] },
+  { path: "/dashboard/client-portal", labelKey: "nav.clientPortal", label: "Client Portal", roles: ["admin", "cfo", "coo", "auditor"] },
+  { path: "/dashboard/ca-billing", labelKey: "nav.caBilling", label: "CA Billing", roles: ["admin", "cfo", "coo", "auditor"] },
+  { path: "/dashboard/ceo", labelKey: "nav.ceo", label: "CEO Dashboard", roles: ["admin"] },
+  { path: "/dashboard/cfo", labelKey: "nav.cfo", label: "Finance Dashboard", roles: ["admin", "cfo"] },
+  { path: "/dashboard/cmo", labelKey: "nav.cmo", label: "Marketing Dashboard", roles: ["admin", "cmo"] },
+  { path: "/dashboard/chro", labelKey: "nav.chro", label: "CHRO Dashboard", roles: ["admin", "chro"] },
+  { path: "/dashboard/coo", labelKey: "nav.coo", label: "COO Dashboard", roles: ["admin", "coo"] },
+  { path: "/dashboard/cbo", labelKey: "nav.cbo", label: "CBO Dashboard", roles: ["admin"] },
+  { path: "/dashboard/abm", labelKey: "nav.abm", label: "ABM", roles: ["admin", "cmo"] },
+  { path: "/dashboard/observatory", labelKey: "nav.observatory", label: "Observatory", roles: ["admin", "cfo", "chro", "cmo", "coo"] },
+  { path: "/dashboard/agents", labelKey: "nav.agents", label: "Agents", roles: ["admin", "cfo", "chro", "cmo", "coo"] },
+  { path: "/dashboard/org-chart", labelKey: "nav.orgChart", label: "Org Chart", roles: ["admin", "cfo", "chro", "cmo", "coo"] },
+  { path: "/dashboard/workflows", labelKey: "nav.workflows", label: "Workflows", roles: ["admin", "cfo", "chro", "cmo", "coo"] },
+  { path: "/dashboard/approvals", labelKey: "nav.approvals", label: "Approvals", roles: ["admin", "cfo", "chro", "cmo", "coo"] },
+  { path: "/dashboard/connectors", labelKey: "nav.connectors", label: "Connectors", roles: ["admin"] },
+  { path: "/dashboard/commerce-runtime", labelKey: "nav.commerceRuntime", label: "Commerce Runtime", roles: ["admin", "merchant"] },
+  { path: "/dashboard/prompt-templates", labelKey: "nav.promptTemplates", label: "Prompt Templates", roles: ["admin"] },
+  { path: "/dashboard/agents/from-sop", labelKey: "nav.createFromSop", label: "Create from SOP", roles: ["admin"] },
+  { path: "/dashboard/integrations", labelKey: "nav.integrations", label: "A2A / MCP", roles: ["admin"] },
+  { path: "/dashboard/sales", labelKey: "nav.sales", label: "Sales Pipeline", roles: ["admin"] },
+  { path: "/dashboard/schemas", labelKey: "nav.schemas", label: "Schemas", roles: ["admin"] },
+  { path: "/dashboard/report-schedules", labelKey: "nav.reportSchedules", label: "Report Schedules", roles: ["admin", "cfo", "cmo"] },
+  { path: "/dashboard/scopes", labelKey: "nav.scopes", label: "Scope Dashboard", roles: ["admin", "cfo", "chro", "cmo", "coo"] },
+  { path: "/dashboard/enforce-audit", labelKey: "nav.enforceAudit", label: "Enforce Audit", roles: ["admin", "cfo", "chro", "cmo", "coo", "auditor"] },
+  { path: "/dashboard/audit", labelKey: "nav.audit", label: "Audit Log", roles: ["admin", "cfo", "chro", "cmo", "coo", "auditor"] },
+  { path: "/dashboard/knowledge", labelKey: "nav.knowledge", label: "Knowledge Base", roles: ["admin", "cfo", "chro", "cmo", "coo"] },
+  { path: "/dashboard/voice-setup", labelKey: "nav.voiceAgents", label: "Voice Agents", roles: ["admin"] },
+  { path: "/dashboard/rpa", labelKey: "nav.rpa", label: "RPA Scripts", roles: ["admin"] },
+  { path: "/dashboard/rpa-schedules", labelKey: "nav.rpaSchedules", label: "RPA Schedules", roles: ["admin"] },
+  { path: "/dashboard/settings/ai-credentials", labelKey: "nav.aiCredentials", label: "AI Credentials", roles: ["admin"] },
+  { path: "/dashboard/settings/ai-config", labelKey: "nav.aiConfig", label: "AI Configuration", roles: ["admin"] },
+  { path: "/dashboard/packs", labelKey: "nav.packs", label: "Industry Packs", roles: ["admin"] },
+  { path: "/dashboard/sla", labelKey: "nav.sla", label: "SLA Monitor", roles: ["admin"] },
+  { path: "/dashboard/billing", labelKey: "nav.billing", label: "Billing", roles: ["admin"] },
+  { path: "/dashboard/settings", labelKey: "nav.settings", label: "Settings", roles: ["admin"] },
+];
+
+const ROLE_LABELS: Record<string, { titleKey: string; domainKey: string }> = {
+  cfo: { titleKey: "roles.cfo", domainKey: "roles.domainFinance" },
+  chro: { titleKey: "roles.chro", domainKey: "roles.domainHr" },
+  cmo: { titleKey: "roles.cmo", domainKey: "roles.domainMarketing" },
+  coo: { titleKey: "roles.coo", domainKey: "roles.domainOperations" },
+  merchant: { titleKey: "roles.merchant", domainKey: "roles.domainCommerce" },
+  admin: { titleKey: "roles.admin", domainKey: "roles.domainAll" },
+  auditor: { titleKey: "roles.auditor", domainKey: "roles.domainReadOnly" },
+};
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const auth = useAuth();
+  const { t, i18n } = useTranslation();
+  const [currentLang, setCurrentLang] = useState(i18n.language);
+  // Force re-render key when language changes so all translated text updates instantly
+  const [langKey, setLangKey] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = (lng: string) => {
+      setCurrentLang(lng);
+      setLangKey((k) => k + 1);
+    };
+    i18n.on("languageChanged", handler);
+    return () => { i18n.off("languageChanged", handler); };
+  }, [i18n]);
+
+  const handleLogout = async () => {
+    try {
+      await auth.logout();
+      navigate("/login");
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Could not sign out. Please try again.");
+    }
+  };
+
+  const userRole = auth.user?.role || "";
+  const filteredNav = ALL_NAV.filter(item => item.roles.includes(userRole));
+  const roleLabel = ROLE_LABELS[userRole];
+
+  const sidebar = (
+    <>
+      <h1 className="text-lg font-bold mb-4 px-1">AgenticOrg</h1>
+      <nav className="flex flex-col gap-1 flex-1 overflow-y-auto">
+        {filteredNav.map(({ path, labelKey, label }) => (
+          <Link key={path} to={path}
+            onClick={() => setSidebarOpen(false)}
+            className={`px-3 py-2 rounded text-sm ${location.pathname === path ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}>{labelKey ? t(labelKey, label) : label}</Link>
+        ))}
+      </nav>
+      <div className="border-t pt-3 mt-3">
+        {auth.user && (
+          <div className="px-3 py-1 mb-2">
+            <p className="text-sm font-medium truncate">{auth.user.name || auth.user.email}</p>
+            {auth.user.name && (
+              <p className="text-xs text-muted-foreground truncate">{auth.user.email}</p>
+            )}
+            {roleLabel && (
+              <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">
+                {t(roleLabel.titleKey)} | {t(roleLabel.domainKey)}
+              </span>
+            )}
+          </div>
+        )}
+        <button
+          onClick={handleLogout}
+          className="w-full px-3 py-2 rounded text-sm text-left hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {t("header.logout", "Logout")}
+        </button>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="flex h-screen overflow-hidden">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - desktop */}
+      <aside className="hidden lg:flex w-56 border-r bg-muted/30 p-4 flex-col flex-shrink-0">
+        {sidebar}
+      </aside>
+
+      {/* Sidebar - mobile slide-out */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-background border-r p-4 flex flex-col transform transition-transform duration-200 ease-in-out lg:hidden ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-lg font-bold">AgenticOrg</span>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="p-1 rounded hover:bg-muted"
+            aria-label="Close menu"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <nav className="flex flex-col gap-1 flex-1 overflow-y-auto">
+          {filteredNav.map(({ path, labelKey, label }) => (
+            <Link key={path} to={path}
+              onClick={() => setSidebarOpen(false)}
+              className={`px-3 py-2 rounded text-sm ${location.pathname === path ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}>{labelKey ? t(labelKey, label) : label}</Link>
+          ))}
+        </nav>
+        <div className="border-t pt-3 mt-3">
+          {auth.user && (
+            <div className="px-3 py-1 mb-2">
+              <p className="text-sm font-medium truncate">{auth.user.name || auth.user.email}</p>
+              {roleLabel && (
+                <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">
+                  {t(roleLabel.titleKey)} | {t(roleLabel.domainKey)}
+                </span>
+              )}
+            </div>
+          )}
+          <button
+            onClick={handleLogout}
+            className="w-full px-3 py-2 rounded text-sm text-left hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {t("header.logout", "Logout")}
+          </button>
+        </div>
+      </aside>
+
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="h-14 border-b flex items-center justify-between px-4 sm:px-6 flex-shrink-0">
+          {/* Hamburger button - mobile only */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-1.5 rounded hover:bg-muted"
+              aria-label="Open menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <Suspense fallback={null}>
+              <CompanySwitcher />
+            </Suspense>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:block">
+              <Suspense fallback={null}>
+                <NLQueryBar onOpenChat={() => setChatOpen(true)} />
+              </Suspense>
+            </div>
+            {/* Language picker */}
+            <select
+              value={currentLang}
+              onChange={(e) => i18n.changeLanguage(e.target.value)}
+              className="h-8 px-2 rounded border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary relative z-50"
+              aria-label="Select language"
+              data-testid="language-picker"
+            >
+              {LANGUAGES.map(({ code, label }) => (
+                <option key={code} value={code}>{label}</option>
+              ))}
+            </select>
+            <Suspense fallback={null}>
+              <NotificationBell />
+            </Suspense>
+            <HITLBadge />
+          </div>
+        </header>
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
+        <main
+          id="main-content"
+          key={langKey}
+          className="flex-1 overflow-auto p-4 sm:p-6"
+          role="main"
+          tabIndex={-1}
+        >
+          {children}
+        </main>
+      </div>
+
+      {/* Chat slide-out panel */}
+      <Suspense fallback={null}>
+        <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
+      </Suspense>
+    </div>
+  );
+}

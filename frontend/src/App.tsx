@@ -1,0 +1,753 @@
+import { lazy, Suspense } from "react";
+import { Navigate, Route, Routes } from "react-router";
+import { I18nextProvider } from "react-i18next";
+import i18n from "./i18n";
+import Analytics from "./components/Analytics";
+import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
+import RouteSeo from "./components/RouteSeo";
+
+/* -- Critical path: Landing page loaded eagerly -- */
+import Landing from "./pages/Landing";
+import NotFound from "./pages/NotFound";
+
+/* -- Lazy import with auto-reload on chunk failure -- */
+function lazyRetry(factory: () => Promise<{ default: React.ComponentType }>) {
+  return lazy(() =>
+    factory().catch(() => {
+      const reloaded = sessionStorage.getItem("chunk_reload");
+      if (!reloaded) {
+        sessionStorage.setItem("chunk_reload", "1");
+        window.location.reload();
+      }
+      sessionStorage.removeItem("chunk_reload");
+      return factory();
+    })
+  );
+}
+
+/* -- Everything else lazy-loaded -- */
+const Login = lazyRetry(() => import("./pages/Login"));
+const Signup = lazyRetry(() => import("./pages/Signup"));
+const InviteAccept = lazyRetry(() => import("./pages/InviteAccept"));
+const ForgotPassword = lazyRetry(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazyRetry(() => import("./pages/ResetPassword"));
+const Evals = lazyRetry(() => import("./pages/Evals"));
+const Pricing = lazyRetry(() => import("./pages/Pricing"));
+const Support = lazyRetry(() => import("./pages/legal/Support"));
+const Privacy = lazyRetry(() => import("./pages/legal/Privacy"));
+const Terms = lazyRetry(() => import("./pages/legal/Terms"));
+const Refund = lazyRetry(() => import("./pages/legal/Refund"));
+const Playground = lazyRetry(() => import("./pages/Playground"));
+const Dashboard = lazyRetry(() => import("./pages/Dashboard"));
+const Agents = lazyRetry(() => import("./pages/Agents"));
+const AgentCreate = lazyRetry(() => import("./pages/AgentCreate"));
+const SOPUpload = lazyRetry(() => import("./pages/SOPUpload"));
+const Integrations = lazyRetry(() => import("./pages/Integrations"));
+const AgentDetail = lazyRetry(() => import("./pages/AgentDetail"));
+const Workflows = lazyRetry(() => import("./pages/Workflows"));
+const WorkflowCreate = lazyRetry(() => import("./pages/WorkflowCreate"));
+const WorkflowDetail = lazyRetry(() => import("./pages/WorkflowDetail"));
+const WorkflowRun = lazyRetry(() => import("./pages/WorkflowRun"));
+const Approvals = lazyRetry(() => import("./pages/Approvals"));
+const Connectors = lazyRetry(() => import("./pages/Connectors"));
+const ConnectorCreate = lazyRetry(() => import("./pages/ConnectorCreate"));
+const ConnectorDetail = lazyRetry(() => import("./pages/ConnectorDetail"));
+const CMOVendorSandboxConnectors = lazyRetry(() => import("./pages/CMOVendorSandboxConnectors"));
+const Schemas = lazyRetry(() => import("./pages/Schemas"));
+const Audit = lazyRetry(() => import("./pages/Audit"));
+const Observatory = lazyRetry(() => import("./pages/Observatory"));
+const Settings = lazyRetry(() => import("./pages/Settings"));
+const AccessDenied = lazyRetry(() => import("./pages/AccessDenied"));
+const Onboarding = lazyRetry(() => import("./pages/Onboarding"));
+const SLAMonitor = lazyRetry(() => import("./pages/SLAMonitor"));
+const PromptTemplates = lazyRetry(() => import("./pages/PromptTemplates"));
+const SalesPipeline = lazyRetry(() => import("./pages/SalesPipeline"));
+const OrgChart = lazyRetry(() => import("./pages/OrgChart"));
+const CommerceRuntimeDemo = lazyRetry(() => import("./pages/CommerceRuntimeDemo"));
+
+/* -- Role-specific dashboards -- */
+const CFODashboard = lazyRetry(() => import("./pages/CFODashboard"));
+const CostDashboard = lazyRetry(() => import("./pages/CostDashboard"));
+const StatusPage = lazyRetry(() => import("./pages/Status"));
+const SSOCallback = lazyRetry(() => import("./pages/SSOCallback"));
+const CMODashboard = lazyRetry(() => import("./pages/CMODashboard"));
+const CHRODashboard = lazyRetry(() => import("./pages/CHRODashboard"));
+const COODashboard = lazyRetry(() => import("./pages/COODashboard"));
+const CBODashboard = lazyRetry(() => import("./pages/CBODashboard"));
+const CEODashboard = lazyRetry(() => import("./pages/CEODashboard"));
+
+/* -- ABM Dashboard -- */
+const ABMDashboard = lazyRetry(() => import("./pages/ABMDashboard"));
+
+/* -- Report Schedules -- */
+const ReportScheduler = lazyRetry(() => import("./pages/ReportScheduler"));
+const RPASchedules = lazyRetry(() => import("./pages/RPASchedules"));
+const AICredentials = lazyRetry(() => import("./pages/AICredentials"));
+const AIConfig = lazyRetry(() => import("./pages/AIConfig"));
+
+/* -- Knowledge Base, Voice, RPA, Industry Packs -- */
+const KnowledgeBase = lazyRetry(() => import("./pages/KnowledgeBase"));
+const VoiceSetup = lazyRetry(() => import("./pages/VoiceSetup"));
+const RPAScripts = lazyRetry(() => import("./pages/RPAScripts"));
+const IndustryPacks = lazyRetry(() => import("./pages/IndustryPacks"));
+
+/* -- Billing -- */
+const Billing = lazyRetry(() => import("./pages/Billing"));
+const BillingCallback = lazyRetry(() => import("./pages/BillingCallback"));
+
+/* -- Scope Enforcement -- */
+const ScopeDashboard = lazyRetry(() => import("./pages/ScopeDashboard"));
+const EnforceAuditLog = lazyRetry(() => import("./pages/EnforceAuditLog"));
+
+/* -- Blog / Content pages -- */
+const Blog = lazyRetry(() => import("./pages/blog/Blog"));
+const BlogPost = lazyRetry(() => import("./pages/blog/BlogPost"));
+
+/* -- Integration workflow page -- */
+const IntegrationWorkflow = lazyRetry(() => import("./pages/IntegrationWorkflow"));
+const OpenAgenticCommerceProtocol = lazyRetry(() => import("./pages/OpenAgenticCommerceProtocol"));
+
+/* -- Google Ads landing pages -- */
+const AdsLanding = lazyRetry(() => import("./pages/ads/AdsLanding"));
+
+/* -- Resource / SEO content pages -- */
+const Resources = lazyRetry(() => import("./pages/resources/Resources"));
+const ResourcePage = lazyRetry(() => import("./pages/resources/ResourcePage"));
+
+/* -- Explainer pages -- */
+const HowGrantexWorks = lazyRetry(() => import("./pages/HowGrantexWorks"));
+
+/* -- CxO Solution pages -- */
+const CFOSolution = lazyRetry(() => import("./pages/CFOSolution"));
+const CHROSolution = lazyRetry(() => import("./pages/CHROSolution"));
+const CMOSolution = lazyRetry(() => import("./pages/CMOSolution"));
+const COOSolution = lazyRetry(() => import("./pages/COOSolution"));
+const CBOSolution = lazyRetry(() => import("./pages/CBOSolution"));
+
+/* -- CA Firms / Company pages -- */
+const CAFirmsSolution = lazyRetry(() => import("./pages/CAFirmsSolution"));
+const CompanyDashboard = lazyRetry(() => import("./pages/CompanyDashboard"));
+const CompanyOnboard = lazyRetry(() => import("./pages/CompanyOnboard"));
+const CompanyDetail = lazyRetry(() => import("./pages/CompanyDetail"));
+const PartnerDashboard = lazyRetry(() => import("./pages/PartnerDashboard"));
+const CAOperations = lazyRetry(() => import("./pages/CAOperations"));
+const ProfessionalTax = lazyRetry(() => import("./pages/ProfessionalTax"));
+const ClientPortal = lazyRetry(() => import("./pages/ClientPortal"));
+const CABilling = lazyRetry(() => import("./pages/CABilling"));
+
+/* -- Loading fallback -- */
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 animate-pulse" />
+        <p className="text-sm text-slate-400">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <I18nextProvider i18n={i18n}>
+    <Analytics />
+    <Suspense fallback={<PageLoader />}>
+    <Routes>
+      {/* Public routes */}
+      <Route path="/" element={<Landing />} />
+      <Route path="/status" element={<StatusPage />} />
+      <Route path="/sso/callback" element={<SSOCallback />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/invite" element={<InviteAccept />} />
+      <Route path="/accept-invite" element={<InviteAccept />} />
+      <Route path="/evals" element={<Evals />} />
+      <Route path="/pricing" element={<Pricing />} />
+      <Route path="/playground" element={<Playground />} />
+
+      {/* Legal / policy pages - required for Stripe activation */}
+      <Route path="/support" element={<Support />} />
+      <Route path="/contact" element={<Navigate to="/support" replace />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/privacy-policy" element={<Navigate to="/privacy" replace />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/terms-of-service" element={<Navigate to="/terms" replace />} />
+      <Route path="/refund" element={<Refund />} />
+      <Route path="/refund-policy" element={<Navigate to="/refund" replace />} />
+      <Route path="/cancellation" element={<Navigate to="/refund" replace />} />
+
+      {/* Blog / Content pages */}
+      <Route path="/blog" element={<Blog />} />
+      <Route path="/blog/:slug" element={<BlogPost />} />
+
+      {/* Resource / SEO content pages */}
+      <Route path="/resources" element={<Resources />} />
+      <Route path="/resources/:slug" element={<ResourcePage />} />
+
+      {/* Integration workflow */}
+      <Route path="/integration-workflow" element={<IntegrationWorkflow />} />
+      <Route path="/open-agentic-commerce-protocol" element={<OpenAgenticCommerceProtocol />} />
+
+      {/* Explainer pages */}
+      <Route path="/how-grantex-works" element={<HowGrantexWorks />} />
+
+      {/* CA Firms Solution */}
+      <Route path="/solutions/ca-firms" element={<CAFirmsSolution />} />
+
+      {/* CxO Solution Pages */}
+      <Route path="/solutions/cfo" element={<CFOSolution />} />
+      <Route path="/solutions/chro" element={<CHROSolution />} />
+      <Route path="/solutions/cmo" element={<CMOSolution />} />
+      <Route path="/solutions/coo" element={<COOSolution />} />
+      <Route path="/solutions/cbo" element={<CBOSolution />} />
+
+      {/* Google Ads landing pages */}
+      <Route path="/solutions/ai-invoice-processing" element={<AdsLanding />} />
+      <Route path="/solutions/automated-bank-reconciliation" element={<AdsLanding />} />
+      <Route path="/solutions/payroll-automation" element={<AdsLanding />} />
+
+      {/* Dashboard and all app routes - wrapped in Layout + ProtectedRoute */}
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "chro", "cmo", "coo", "auditor"]}>
+            <Layout>
+              <Dashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/cfo"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo"]}>
+            <Layout>
+              <CFODashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/costs"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "ceo"]}>
+            <Layout>
+              <CostDashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/cmo"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cmo"]}>
+            <Layout>
+              <CMODashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/commerce-runtime"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "merchant"]}>
+            <Layout>
+              <CommerceRuntimeDemo />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/chro"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "chro"]}>
+            <Layout>
+              <CHRODashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/coo"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "coo"]}>
+            <Layout>
+              <COODashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/cbo"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <CBODashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/ceo"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <CEODashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/abm"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cmo"]}>
+            <Layout>
+              <ABMDashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/report-schedules"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "cmo"]}>
+            <Layout>
+              <ReportScheduler />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/rpa-schedules"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <RPASchedules />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/settings/ai-credentials"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <AICredentials />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/settings/ai-config"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <AIConfig />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/observatory"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "chro", "cmo", "coo"]}>
+            <Layout>
+              <Observatory />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/scopes"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "chro", "cmo", "coo"]}>
+            <Layout>
+              <ScopeDashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/enforce-audit"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "chro", "cmo", "coo"]}>
+            <Layout>
+              <EnforceAuditLog />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/agents"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "chro", "cmo", "coo"]}>
+            <Layout>
+              <Agents />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/org-chart"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "chro", "cmo", "coo"]}>
+            <Layout>
+              <OrgChart />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/agents/new"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <AgentCreate />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/agents/from-sop"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <SOPUpload />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/agents/:id"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "chro", "cmo", "coo"]}>
+            <Layout>
+              <AgentDetail />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/workflows"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "chro", "cmo", "coo"]}>
+            <Layout>
+              <Workflows />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/workflows/new"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "chro", "cmo", "coo"]}>
+            <Layout>
+              <WorkflowCreate />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/workflows/:id"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "chro", "cmo", "coo"]}>
+            <Layout>
+              <WorkflowDetail />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/workflows/:id/runs/:runId"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "chro", "cmo", "coo"]}>
+            <Layout>
+              <WorkflowRun />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/approvals"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "chro", "cmo", "coo"]}>
+            <Layout>
+              <Approvals />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/integrations"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <Integrations />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/connectors"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <Connectors />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/prompt-templates"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <PromptTemplates />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/connectors/new"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <ConnectorCreate />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/connectors/cmo-vendor-sandbox"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <CMOVendorSandboxConnectors />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/connectors/:id"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <ConnectorDetail />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/schemas"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <Schemas />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/audit"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "chro", "cmo", "coo", "auditor"]}>
+            <Layout>
+              <Audit />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/access-denied"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <AccessDenied />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/onboarding"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Onboarding />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/sla"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <SLAMonitor />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/sales"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <SalesPipeline />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/knowledge"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "chro", "cmo", "coo"]}>
+            <Layout>
+              <KnowledgeBase />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/voice-setup"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <VoiceSetup />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/rpa"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <RPAScripts />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/packs"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <IndustryPacks />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/billing"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <Billing />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/billing/callback"
+        element={<BillingCallback />}
+      />
+      <Route
+        path="/dashboard/partner"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "coo", "auditor"]}>
+            <Layout>
+              <PartnerDashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/ca-operations"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "coo", "auditor"]}>
+            <Layout>
+              <CAOperations />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/professional-tax"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "coo", "auditor"]}>
+            <Layout>
+              <ProfessionalTax />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/client-portal"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "coo", "auditor"]}>
+            <Layout>
+              <ClientPortal />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/ca-billing"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "coo", "auditor"]}>
+            <Layout>
+              <CABilling />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/companies"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "coo", "auditor"]}>
+            <Layout>
+              <CompanyDashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/companies/new"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo"]}>
+            <Layout>
+              <CompanyOnboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/companies/:id"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "cfo", "coo", "auditor"]}>
+            <Layout>
+              <CompanyDetail />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/settings"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout>
+              <Settings />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 404 catch-all */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+    <RouteSeo />
+    </Suspense>
+    </I18nextProvider>
+  );
+}

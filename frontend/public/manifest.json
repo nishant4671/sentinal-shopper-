@@ -1,0 +1,24 @@
+{
+  "name": "AgenticOrg — AI Workflow Evaluation Workspace",
+  "short_name": "AgenticOrg",
+  "description": "Review repository-backed AI workflow candidates, evidence, and approval controls before deployment.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "categories": ["business", "productivity", "finance"],
+  "icons": [
+    {"src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml"},
+    {"src": "/favicon-32x32.png", "sizes": "32x32", "type": "image/png"},
+    {"src": "/favicon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "/favicon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ],
+  "screenshots": [
+    {"src": "/screenshots/dashboard.png", "sizes": "1920x1080", "type": "image/png", "label": "Repository dashboard view"},
+    {"src": "/screenshots/observatory.png", "sizes": "1920x1080", "type": "image/png", "label": "Illustrative activity view"},
+    {"src": "/screenshots/approvals.png", "sizes": "1920x1080", "type": "image/png", "label": "Approval review interface"}
+  ]
+}
